@@ -12,7 +12,7 @@ on:
 
 jobs:
   docker:
-    runs-on: [self-hosted, gh-base-builder-runners]
+    runs-on: gh-base-builder-runners
     container:
       image: ghcr.io/actions/actions-runner:latest
     steps:

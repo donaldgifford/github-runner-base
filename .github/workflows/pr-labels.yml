@@ -10,7 +10,7 @@ permissions:
 jobs:
   check-labels:
     name: Check Required Labels
-    runs-on: [self-hosted, gh-base-builder-runners]
+    runs-on: gh-base-builder-runners
     container:
       image: alpine:latest
     steps:
