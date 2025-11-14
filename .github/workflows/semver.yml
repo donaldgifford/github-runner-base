@@ -1,0 +1,31 @@
+name: semver bump
+on:
+  push:
+    branches:
+      - "main"
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: read
+
+jobs:
+  bump-tag-version:
+    name: Bump and Tag Version
+    runs-on: homelab-runners
+    container:
+      image: ubuntu:latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jefflinse/pr-semver-bump@v1.7.3
+        name: Bump and Tag Version
+        with:
+          mode: bump
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          require-release-notes: false
+          major-label: major
+          minor-label: minor
+          patch-label: patch
+          noop-labels: "dont-release"
+          release-notes-prefix: "### RELEASE NOTES"
+          with-v: true
