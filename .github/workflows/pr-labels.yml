@@ -10,7 +10,7 @@ permissions:
 jobs:
   check-labels:
     name: Check Required Labels
-    runs-on: homelab-runners
+    runs-on: self-hosted
     container:
       image: alpine:latest
     steps:

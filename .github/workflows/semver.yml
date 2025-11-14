@@ -12,7 +12,7 @@ permissions:
 jobs:
   bump-tag-version:
     name: Bump and Tag Version
-    runs-on: homelab-runners
+    runs-on: self-hosted
     container:
       image: ubuntu:latest
     steps:
