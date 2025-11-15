@@ -12,9 +12,10 @@ on:
 
 jobs:
   docker:
-    runs-on: gh-base-builder-runners
-    container:
-      image: ghcr.io/actions/actions-runner:latest
+    # runs-on: gh-base-builder-runners
+    runs-on: container-builders
+    # container:
+    # image: ghcr.io/actions/actions-runner:latest
     steps:
       - name: Docker meta
         id: meta
