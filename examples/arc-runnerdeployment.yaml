@@ -1,0 +1,48 @@
+# Example RunnerDeployment for GitHub Actions Runner Controller (ARC)
+# This uses the custom runner image with extended tooling
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerDeployment
+metadata:
+  name: github-runner-deployment
+  namespace: actions-runner-system
+spec:
+  replicas: 2
+  template:
+    spec:
+      # Use the custom runner image
+      image: ghcr.io/donaldgifford/github-runner-base:latest
+
+      # Repository or organization to register runners with
+      repository: your-org/your-repo
+      # Or for organization-wide runners:
+      # organization: your-org
+
+      # Labels for targeting specific runners
+      labels:
+        - self-hosted
+        - linux
+        - x64
+        - extended-tools
+
+      # Resource limits
+      resources:
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+        requests:
+          cpu: "1"
+          memory: "2Gi"
+
+      # Environment variables (if needed)
+      env:
+        - name: RUNNER_FEATURE_FLAG_EPHEMERAL
+          value: "true"
+
+      # Storage for runner work directory
+      volumeMounts:
+        - name: work
+          mountPath: /runner/_work
+
+      volumes:
+        - name: work
+          emptyDir: {}
