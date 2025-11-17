@@ -1,0 +1,47 @@
+# Example values.yaml for GitHub Actions Runner Controller Helm chart
+# This configures runners to use the custom image with extended tooling
+
+# Runner configuration
+githubConfigUrl: "https://github.com/your-org/your-repo"
+# Or for organization-wide: "https://github.com/your-org"
+
+# Use your GitHub PAT or App credentials
+githubConfigSecret: github-runner-secret
+
+# Runner image configuration
+image:
+  repository: ghcr.io/donaldgifford/github-runner-base
+  tag: latest
+  pullPolicy: Always
+
+# Runner settings
+runner:
+  name: "arc-runner"
+  labels:
+    - self-hosted
+    - linux
+    - x64
+    - extended-tools
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+
+# Autoscaling configuration
+minRunners: 1
+maxRunners: 5
+
+# Runner lifecycle
+runnerScaleSetName: "arc-runner-set"
+
+# Work directory
+workDir: /runner/_work
+
+# Additional environment variables
+env:
+  RUNNER_FEATURE_FLAG_EPHEMERAL: "true"
