@@ -52,20 +52,25 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
 
       - name: Test image
         if: github.event_name == 'pull_request'
         run: |
-          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:pr-${{ github.event.number }} bash -c "
+          # Get the first tag from the metadata output
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
+          echo "Testing image: $IMAGE_TAG"
+          docker run --rm "$IMAGE_TAG" bash -c "
             echo 'Testing installed tools...' &&
             curl --version &&
             wget --version &&
