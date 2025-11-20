@@ -1,0 +1,83 @@
+name: runner-test
+
+on:
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Test 1: Simple echo test without any actions
+  simple-test-no-container:
+    runs-on: gh-base-builder-runners
+    steps:
+      - name: Basic Test
+        run: |
+          echo "Testing ARC runner"
+          echo "Runner: $RUNNER_NAME"
+          echo "OS: $RUNNER_OS"
+          uname -a
+
+  simple-test-ubuntu:
+    runs-on: gh-base-builder-runners
+    container:
+      image: ubuntu:latest
+    steps:
+      - name: Basic Test
+        run: |
+          echo "Testing ARC runner"
+          echo "Runner: $RUNNER_NAME"
+          echo "OS: $RUNNER_OS"
+          uname -a
+
+  # Test 2: Test with a container that has git pre-installed
+  test-with-node:
+    runs-on: gh-base-builder-runners
+    container:
+      image: node:24
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Show files
+        run: |
+          ls -la
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          which git || echo "Git not found"
+
+  # Test 2: Test with a container that has git pre-installed
+  test-with-golang:
+    runs-on: gh-base-builder-runners
+    container:
+      image: node:24
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+      - run: go version
+
+      - name: Show files
+        run: |
+          ls -la
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          which git || echo "Git not found"
+
+  # Test 3: Test without container (uses runner's default environment)
+  test-no-container:
+    runs-on: gh-base-builder-runners
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Test runner environment
+        run: |
+          echo "Testing without container"
+          which git || echo "Git not found"
+          which node || echo "Node not found"
+          which docker || echo "Docker not found"
