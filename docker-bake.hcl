@@ -1,3 +1,10 @@
+// docker-bake.hcl — Docker image builds for github-runner-base.
+//
+// Targets:
+//   dev     — local single-arch build, loads into Docker daemon
+//   ci      — multi-arch validation build, no push
+//   release — multi-arch build, pushes to registry
+
 variable "REGISTRY" {
   default = "ghcr.io"
 }
@@ -6,65 +13,64 @@ variable "IMAGE_NAME" {
   default = "donaldgifford/github-runner-base"
 }
 
-variable "TAGS" {
-  # Comma-separated list of tags; CI overrides this via metadata-action.
-  default = "${REGISTRY}/${IMAGE_NAME}:latest"
+variable "VERSION" {
+  default = "dev"
 }
 
-variable "LABELS" {
+variable "COMMIT_SHA" {
   default = ""
 }
 
-variable "CACHE_FROM" {
+variable "BUILD_DATE" {
   default = ""
 }
 
-variable "CACHE_TO" {
-  default = ""
+function "tags" {
+  params = [version]
+  result = version == "dev" ? [
+    "${REGISTRY}/${IMAGE_NAME}:dev",
+    ] : [
+    "${REGISTRY}/${IMAGE_NAME}:${version}",
+    "${REGISTRY}/${IMAGE_NAME}:latest",
+  ]
 }
 
-function "parse_tags" {
-  params = [tags]
-  result = split("\n", tags)
-}
-
-group "default" {
-  targets = ["runner"]
-}
-
-target "runner" {
-  context    = "."
+target "_common" {
   dockerfile = "Dockerfile"
-  tags       = parse_tags(TAGS)
-  labels     = LABELS != "" ? { for pair in split("\n", LABELS) : element(split("=", pair), 0) => element(split("=", pair), 1) if pair != "" } : {}
+  context    = "."
+  labels = {
+    "org.opencontainers.image.source"      = "https://github.com/donaldgifford/github-runner-base"
+    "org.opencontainers.image.description" = "GitHub Actions Runner with extended tooling for setup actions"
+    "org.opencontainers.image.licenses"    = "MIT"
+    "org.opencontainers.image.revision"    = "${COMMIT_SHA}"
+    "org.opencontainers.image.created"     = "${BUILD_DATE}"
+    "org.opencontainers.image.version"     = "${VERSION}"
+  }
 }
 
-target "local" {
-  inherits = ["runner"]
-  tags     = ["${REGISTRY}/${IMAGE_NAME}:local"]
-  output   = ["type=docker"]
-}
-
-target "test" {
-  inherits = ["runner"]
-  tags     = ["${REGISTRY}/${IMAGE_NAME}:test"]
+target "dev" {
+  inherits = ["_common"]
+  tags     = tags("dev")
   output   = ["type=docker"]
 }
 
 target "ci" {
-  inherits = ["runner"]
-  cache-from = CACHE_FROM != "" ? [CACHE_FROM] : []
-  cache-to   = CACHE_TO != "" ? [CACHE_TO] : []
+  inherits   = ["_common"]
+  tags       = tags(VERSION)
+  platforms  = ["linux/amd64", "linux/arm64"]
+  output     = ["type=cacheonly"]
+  cache-from = ["type=gha"]
+  cache-to   = ["type=gha,mode=max"]
 }
 
-target "ci-local" {
-  inherits   = ["ci"]
-  platforms  = ["linux/amd64"]
-  output     = ["type=docker"]
+target "docker-metadata-action" {
+  tags = tags(VERSION)
 }
 
-target "ci-push" {
-  inherits   = ["ci"]
+target "release" {
+  inherits   = ["_common", "docker-metadata-action"]
   platforms  = ["linux/amd64", "linux/arm64"]
   output     = ["type=registry"]
+  cache-from = ["type=gha"]
+  cache-to   = ["type=gha,mode=max"]
 }

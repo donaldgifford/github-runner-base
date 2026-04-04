@@ -37,8 +37,3 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Switch back to the runner user (important for ARC compatibility)
 USER runner
-
-# Metadata
-LABEL org.opencontainers.image.source="https://github.com/donaldgifford/github-runner-base"
-LABEL org.opencontainers.image.description="GitHub Actions Runner with extended tooling for setup actions"
-LABEL org.opencontainers.image.licenses="MIT"
