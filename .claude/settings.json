@@ -1,0 +1,14 @@
+{
+  "enabledPlugins": {
+    "ralph-loop@claude-plugins-official": true,
+    "claude-md@donaldgifford-claude-skills": true,
+    "docker@donaldgifford-claude-skills": true,
+    "makefiles@donaldgifford-claude-skills": true,
+    "mise@donaldgifford-claude-skills": true,
+    "shell-scripting@donaldgifford-claude-skills": true,
+    "kubernetes-operations@donaldgifford-claude-skills": true,
+    "helm@donaldgifford-claude-skills": true,
+    "infrastructure-as-code@donaldgifford-claude-skills": true,
+    "docz@donaldgifford-claude-skills": true
+  }
+}
