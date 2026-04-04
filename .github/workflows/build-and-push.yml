@@ -51,23 +51,21 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
-        id: build
-        uses: docker/build-push-action@v5
+      - name: Build image (PR)
+        if: github.event_name == 'pull_request'
+        uses: docker/bake-action@v6
         with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          load: ${{ github.event_name == 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+          targets: ci-local
+          set: |
+            ci-local.tags=${{ steps.meta.outputs.tags }}
+            ci-local.labels=${{ steps.meta.outputs.labels }}
+        env:
+          CACHE_FROM: type=gha
+          CACHE_TO: type=gha,mode=max
 
-      - name: Test image
+      - name: Test image (PR)
         if: github.event_name == 'pull_request'
         run: |
-          # Get the first tag from the metadata output
           IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
           echo "Testing image: $IMAGE_TAG"
           docker run --rm "$IMAGE_TAG" bash -c "
@@ -77,5 +75,19 @@ jobs:
             tar --version &&
             git --version &&
             jq --version &&
+            python3 --version &&
+            gcc --version &&
             echo 'All tools installed successfully!'
           "
+
+      - name: Build and push image
+        if: github.event_name != 'pull_request'
+        uses: docker/bake-action@v6
+        with:
+          targets: ci-push
+          set: |
+            ci-push.tags=${{ steps.meta.outputs.tags }}
+            ci-push.labels=${{ steps.meta.outputs.labels }}
+        env:
+          CACHE_FROM: type=gha
+          CACHE_TO: type=gha,mode=max
