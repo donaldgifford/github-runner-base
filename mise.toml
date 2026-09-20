@@ -1,17 +1,41 @@
+# Toolchain for github-runner-base.
+#
+# CI installs this same set via jdx/mise-action, so `just lint` and
+# `just scan` behave identically locally and on a PR. Every version is
+# pinned — "latest" would make the `# renovate:` hints below inert.
+
 [tools]
 
+# Task runner
+# renovate: datasource=github-releases depName=casey/just
+just = "1.58.0"
 
-# Repo utilities
-# Formatters and linters
+# Linters and formatters
+# renovate: datasource=github-releases depName=hadolint/hadolint
+hadolint = "2.15.1"
+# renovate: datasource=github-releases depName=rhysd/actionlint
+actionlint = "1.7.12"
+# renovate: datasource=github-releases depName=DavidAnson/markdownlint-cli2
 markdownlint-cli2 = "0.18.1"
+# renovate: datasource=github-releases depName=google/yamlfmt
 yamlfmt = "0.20.0"
+# renovate: datasource=github-tags depName=adrienverge/yamllint
 yamllint = "1.37.1"
+# renovate: datasource=npm depName=prettier
 prettier = "3.7.4"
-"github:donaldgifford/makefmt" = "latest"
-checkmake = "latest"
-git-cliff = "latest"
 
-# tools
-yq = "4.48.1"
-jq = "latest"
-"github:donaldgifford/docz" = "latest"
+# Changelog
+# renovate: datasource=github-releases depName=orhun/git-cliff
+git-cliff = "2.14.2"
+
+# Supply chain — image scanning, SBOMs, signature verification
+# renovate: datasource=github-releases depName=aquasecurity/trivy
+trivy = "0.74.0"
+# renovate: datasource=github-releases depName=anchore/syft
+syft = "1.52.0"
+# renovate: datasource=github-releases depName=sigstore/cosign
+cosign = "3.1.3"
+
+# Used by `just verify` to read the image index
+# renovate: datasource=github-releases depName=jqlang/jq
+jq = "1.8.2"
