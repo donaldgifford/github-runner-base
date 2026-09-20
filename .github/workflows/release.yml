@@ -1,23 +1,62 @@
+---
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
 name: Release
+
+# Self-contained GHCR release train. On merge to main:
+#   bump-version — semver bump + tag derived from the merged PR's label
+#                  (major/minor/patch/dont-release, created by scripts/labels.sh)
+#   image        — multi-arch image via bake, pushed to GHCR carrying an SBOM
+#                  and SLSA provenance, cosign-signed, with Sigstore-signed
+#                  GitHub attestations
+#
+# A PR labeled `dont-release` produces no tag, so nothing publishes.
+#
+# Also dispatchable for ad-hoc republishes: supply the tag. The push is a
+# same-content overwrite, so re-running is safe.
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to republish (e.g. v1.8.2). The image version derives from it."
+        type: string
+        required: false
+        default: ""
+      dry_run:
+        description: "Build but do not push, sign, or attest."
+        type: boolean
+        required: false
+        default: false
+
 permissions:
-  contents: write
-  issues: read
-  pull-requests: read
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_REPO: ${{ github.repository }}
+
 jobs:
   bump-version:
     name: Bump Version
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: write # pushes the release tag
+      issues: read
+      pull-requests: read # reads the merged PR's semver label
     outputs:
       tag: ${{ steps.bump.outputs.version }}
       skipped: ${{ steps.bump.outputs.skipped }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
       - uses: jefflinse/pr-semver-bump@v1.7.4
         id: bump
         name: Bump and Tag Version
@@ -31,37 +70,73 @@ jobs:
           noop-labels: "dont-release"
           release-notes-prefix: "### RELEASE NOTES"
           with-v: true
-  docker:
-    name: Docker
+
+  image:
+    name: Publish image
     runs-on: ubuntu-latest
-    needs: [bump-version]
-    if: needs.bump-version.outputs.skipped != 'true'
+    needs: bump-version
+    # Runs when a tag is available from either path: the dispatch input, or a
+    # non-skipped bump on push. !cancelled() lifts the implicit success() gate
+    # so the dispatch path survives bump-version being skipped entirely.
+    if: >-
+      !cancelled() && needs.bump-version.result != 'failure' && ((github.event_name == 'workflow_dispatch' && inputs.tag !=
+      '') ||
+       (github.event_name == 'push' && needs.bump-version.outputs.skipped != 'true' &&
+        needs.bump-version.outputs.tag != ''))
     permissions:
       contents: read
-      packages: write
+      packages: write # push the image and the attestations
+      id-token: write # keyless signing via the GitHub OIDC token
+      attestations: write # actions/attest-*
+    env:
+      TAG: ${{ inputs.tag || needs.bump-version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.bump-version.outputs.tag }}
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+          ref: ${{ inputs.tag || needs.bump-version.outputs.tag }}
+          persist-credentials: false
+
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: sigstore/cosign-installer@v4.1.2
+
+      # Also leaves credentials in the Docker config, which is how the
+      # attest-* steps below authenticate their push-to-registry.
+      - name: Login to GHCR
+        uses: docker/login-action@v4
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/donaldgifford/github-runner-base
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}
           tags: |
-            type=semver,pattern={{version}},value=${{ needs.bump-version.outputs.tag }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.bump-version.outputs.tag }}
+            type=semver,pattern={{version}},value=${{ env.TAG }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG }}
             type=raw,value=latest
-      - name: Build and push Docker images
-        uses: docker/bake-action@v6
+
+      # From the checked-out tag, not github.sha — the latter is the trigger
+      # commit, which differs on a dispatch republish of an older tag.
+      - name: Resolve build metadata
+        run: |
+          echo "COMMIT_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      # The release target declares attest = [provenance mode=max, sbom], so
+      # the pushed index carries an SPDX SBOM and SLSA provenance per platform
+      # as OCI attestation manifests.
+      - name: Build and push image
+        id: bake
+        if: ${{ !inputs.dry_run }}
+        uses: docker/bake-action@v7
+        env:
+          VERSION: ${{ env.TAG }}
+          COMMIT_SHA: ${{ env.COMMIT_SHA }}
+          BUILD_DATE: ${{ env.BUILD_DATE }}
         with:
           targets: release
           source: .
@@ -72,3 +147,101 @@ jobs:
           set: |-
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
+
+      - name: Capture image digest
+        id: digest
+        if: steps.bake.conclusion == 'success' && !inputs.dry_run
+        # fromJSON runs in the expression layer, so only the 71-char digest
+        # ever reaches the process environment. Two prior shapes both broke a
+        # release elsewhere:
+        #   - inlining ${{ steps.bake.outputs.metadata }} into the run: script;
+        #     a paren in the JSON broke shell quoting.
+        #   - passing the whole blob through env:. mode=max provenance embeds
+        #     the push event payload, so the metadata blob can exceed execve's
+        #     131,072-byte limit ("Argument list too long") — bash never
+        #     starts and the image publishes unsigned.
+        # Keep the value in env: rather than inlining it (the shell must never
+        # parse registry-derived text), but extract it first.
+        env:
+          DIGEST: ${{ fromJSON(steps.bake.outputs.metadata).release['containerimage.digest'] }}
+        run: |
+          if [ -z "${DIGEST}" ] || [ "${DIGEST}" = "null" ]; then
+            echo "::error::failed to capture image digest from bake metadata"
+            exit 1
+          fi
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      # Signs the index digest. The index references the per-platform images
+      # and the SBOM/provenance attestation manifests by digest, so one
+      # signature covers all of them.
+      - name: Sign image with cosign
+        if: steps.digest.outputs.published == 'true'
+        env:
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          cosign sign --yes "${REGISTRY}/${IMAGE_REPO}@${DIGEST}"
+
+      - name: Attest build provenance
+        if: steps.digest.outputs.published == 'true'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
+      - uses: anchore/sbom-action/download-syft@v0
+        if: steps.digest.outputs.published == 'true'
+
+      # The in-registry SBOM from buildkit is per-platform and authoritative.
+      # This one exists so there is a single SPDX document verifiable with
+      # `gh attestation verify`; syft resolves the index to the runner's
+      # platform, so pin it explicitly rather than letting it drift.
+      - name: Generate SBOM for attestation
+        if: steps.digest.outputs.published == 'true'
+        env:
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          syft scan "registry:${REGISTRY}/${IMAGE_REPO}@${DIGEST}" \
+            --platform linux/amd64 \
+            -o spdx-json=sbom.spdx.json
+
+      - name: Attest SBOM
+        if: steps.digest.outputs.published == 'true'
+        uses: actions/attest-sbom@v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_REPO }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+
+      - name: Upload SBOM artifact
+        if: steps.digest.outputs.published == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-${{ env.TAG }}.spdx.json
+          path: sbom.spdx.json
+          retention-days: 90
+
+      - name: Write image summary
+        if: always()
+        env:
+          DIGEST: ${{ steps.digest.outputs.digest }}
+          PUBLISHED: ${{ steps.digest.outputs.published || 'false' }}
+        run: |-
+          {
+            echo "## GHCR Image Publish"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Image | \`${REGISTRY}/${IMAGE_REPO}\` |"
+            echo "| Tag | \`${TAG}\` |"
+            echo "| Pushed | \`${PUBLISHED}\` |"
+            if [ -n "${DIGEST}" ]; then
+              echo "| Digest | \`${DIGEST}\` |"
+              echo ""
+              echo '```console'
+              echo "$ just verify ${TAG}"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

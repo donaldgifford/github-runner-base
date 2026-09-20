@@ -1,11 +1,14 @@
 ---
+# yaml-language-server: $schema=https://www.schemastore.org/yamlfmt.json
 # yamlfmt configuration for project
 doublestar: true
+# With doublestar on, yamlfmt matches these patterns rather than taking a
+# path argument — `just fmt` therefore invokes it with no arguments.
+include:
+  - "**/*.yaml"
+  - "**/*.yml"
 exclude:
-  - charts/server-price-tracker/templates/**
-  - .mockery.yaml
-  - .forge-lock.yaml
-  - scripts/docker/**
+  - .git/**
 formatter:
   type: basic
   indent: 2

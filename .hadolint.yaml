@@ -1,0 +1,24 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/hadolint/hadolint/master/contrib/hadolint.json
+# hadolint configuration — see https://github.com/hadolint/hadolint
+#
+# Run by `just lint-dockerfile`, which CI invokes via `just lint`.
+
+# Anything at warning or above fails the build. The two rules below are
+# suppressed on purpose; everything else is expected to stay clean.
+failure-threshold: warning
+
+ignored:
+  # DL3008 "Pin versions in apt-get install".
+  # Deliberately not done. Debian/Ubuntu archives drop superseded package
+  # versions, so a pinned apt version turns into a hard build failure within
+  # weeks and, worse, pins us to unpatched packages in between. Reproducibility
+  # comes from the digest-pinned base image instead, and the Trivy gate in CI
+  # is what catches a vulnerable package landing in the image.
+  - DL3008
+
+  # DL3066 "Non-numeric user-id may not be resolvable by host system".
+  # `USER runner` is required: the Actions Runner Controller expects the
+  # image to end as the named `runner` user, and switching to its numeric
+  # uid would break if upstream ever renumbers it.
+  - DL3066

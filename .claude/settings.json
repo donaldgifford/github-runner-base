@@ -1,14 +1,44 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "enabledPlugins": {
-    "ralph-loop@claude-plugins-official": true,
-    "claude-md@donaldgifford-claude-skills": true,
+    "git-workflow@donaldgifford-claude-skills": true,
+    "git-cliff@donaldgifford-claude-skills": true,
+    "justfile@donaldgifford-claude-skills": true,
+    "skill-creator@donaldgifford-claude-skills": true,
+    "donald-loop@donaldgifford-claude-skills": true,
+    "todo-comments@donaldgifford-claude-skills": true,
+    "renovate@donaldgifford-claude-skills": true,
     "docker@donaldgifford-claude-skills": true,
-    "makefiles@donaldgifford-claude-skills": true,
     "mise@donaldgifford-claude-skills": true,
     "shell-scripting@donaldgifford-claude-skills": true,
-    "kubernetes-operations@donaldgifford-claude-skills": true,
-    "helm@donaldgifford-claude-skills": true,
-    "infrastructure-as-code@donaldgifford-claude-skills": true,
     "docz@donaldgifford-claude-skills": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh api *)",
+      "Bash(gh label *)",
+      "Bash(gh pr *)",
+      "Bash(gh release *)",
+      "Bash(gh attestation verify *)",
+      "Bash(just *)",
+      "Bash(docker *)",
+      "Bash(mise *)",
+      "Bash(trivy *)",
+      "Bash(syft *)",
+      "Bash(cosign verify *)",
+      "Bash(hadolint *)",
+      "Bash(actionlint*)",
+      "Bash(yamllint *)",
+      "Bash(markdownlint-cli2 *)",
+      "Bash(prettier *)",
+      "Bash(git-cliff *)",
+      "Bash(docz --help)",
+      "Bash(docz create *)",
+      "Bash(docz template *)",
+      "Bash(docz list *)",
+      "Bash(docz update *)",
+      "WebFetch(domain:docs.anthropic.com)"
+    ]
   }
 }

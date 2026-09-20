@@ -8,8 +8,15 @@ README.md
 LICENSE
 *.md
 
-# CI/CD
+# CI/CD and local automation
 .github
+justfile
+docker-bake.hcl
+mise.toml
+renovate.json5
+cliff.toml
+scripts
+examples
 
 # IDE
 .vscode
@@ -21,3 +28,6 @@ LICENSE
 # OS
 .DS_Store
 Thumbs.db
+
+# ai
+.claude

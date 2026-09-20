@@ -1,0 +1,58 @@
+---
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+name: Changelog Regen
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Regenerates CHANGELOG.md from conventional commits after every merge, so
+# nobody has to remember to run `just changelog` in a PR.
+#
+# Timing note: this runs on the same push that release.yml cuts the tag from,
+# and the two race. When regen wins, the just-merged commits land under
+# "unreleased" and the *next* merge files them under their tag. That
+# self-corrects; run this workflow manually if you want it corrected sooner.
+#
+# Loop guard: skip the run when the head commit is itself a chore(changelog)
+# auto-sync (this workflow's own output). A GITHUB_TOKEN push does not
+# normally retrigger workflows, so this is belt-and-braces — cliff.toml also
+# skips chore-changelog commits from the generated body via
+# `^chore.*[Cc]hangelog`.
+jobs:
+  regen:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(changelog)') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          # Default GITHUB_TOKEN, so the push is attributed to the bot;
+          # `permissions: contents: write` above is what lets it push.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up mise (for git-cliff)
+        uses: jdx/mise-action@v4
+
+      - name: Regenerate CHANGELOG.md
+        run: |
+          git fetch --tags origin
+          just changelog
+
+      - name: Commit and push if changed
+        run: |-
+          if git diff --quiet CHANGELOG.md; then
+            echo "CHANGELOG.md is up to date — nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore(changelog): Auto-sync"
+          git push origin HEAD:main
