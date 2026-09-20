@@ -1,0 +1,32 @@
+---
+# Trivy vulnerability exceptions for github-runner-base.
+#
+# Read by `just scan` and by both Trivy steps in ci.yml / image-scan.yml, so
+# an entry here suppresses the finding in the merge gate AND in the Security
+# tab. Use it sparingly.
+#
+# Only add a CVE here when it is genuinely not actionable in this repo —
+# almost everything we ship comes from the upstream actions-runner base
+# image, so the usual fix is bumping the pinned digest in the Dockerfile,
+# not an exception. The CI gate already skips vulnerabilities with no fix
+# available anywhere, so those never need an entry.
+#
+# Always set `expired_at`. Once that date passes Trivy stops honouring the
+# entry and the finding comes back, which is what forces a re-check instead
+# of letting the list quietly accrete forever.
+
+vulnerabilities:
+  - id: CVE-2026-59873
+    paths:
+      - home/runner/externals/node20/lib/node_modules/npm/node_modules/tar/package.json
+      - home/runner/externals/node24/lib/node_modules/npm/node_modules/tar/package.json
+    statement: >-
+      node-tar DoS via a crafted gzip bomb, in the npm bundled inside the
+      Node runtimes that ghcr.io/actions/actions-runner ships under
+      /home/runner/externals/. Nothing in our Dockerfile installs or uses it,
+      and we cannot patch it without forking the base image — the fix is an
+      upstream runner release bundling npm with node-tar >= 7.5.19, which
+      Renovate will pick up as a base-image digest bump.
+      Re-check on expiry: if the current base image still carries it, extend
+      with a fresh date and a note on why; if not, delete this entry.
+    expired_at: 2026-12-20

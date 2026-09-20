@@ -1,0 +1,83 @@
+---
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+name: Image Scan
+
+# Rescans the *published* image on a schedule. ci.yml only ever sees the
+# image a PR builds, so without this a CVE disclosed after release would
+# never surface — the image on GHCR would silently rot. Findings land in the
+# same Security tab under a separate category, so a released regression is
+# distinguishable from something a PR introduced.
+on:
+  schedule:
+    # Mondays at 0000 — same slot as the CodeQL scan.
+    - cron: "0 0 * * 1"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to scan."
+        type: string
+        required: false
+        default: "latest"
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  scan:
+    name: Scan published image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ inputs.tag || 'latest' }}
+          scanners: vuln
+          format: sarif
+          output: trivy-published.sarif
+          severity: CRITICAL,HIGH
+          limit-severities-for-sarif: true
+          trivyignores: .trivyignore.yaml
+          exit-code: "0"
+
+      - name: Upload results to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-published.sarif
+          category: trivy-published-image
+
+      # Unlike the PR gate this does not block anything — there is nothing to
+      # block. It fails the scheduled run so the failure notification lands,
+      # which is the signal to bump the base image digest in the Dockerfile.
+      - name: Fail if the published image has fixable CRITICALs
+        uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_SKIP_DB_UPDATE: "true"
+          TRIVY_SKIP_JAVA_DB_UPDATE: "true"
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ inputs.tag || 'latest' }}
+          scanners: vuln
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          trivyignores: .trivyignore.yaml
+          exit-code: "1"
+          skip-setup-trivy: true

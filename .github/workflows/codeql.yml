@@ -1,0 +1,49 @@
+---
+# yaml-language-server: $schema=https://www.schemastore.org/github-workflow.json
+name: CodeQL
+
+# This repo ships no application code — the only thing CodeQL has to analyze
+# is the workflows themselves. The `actions` language catches the mistakes
+# that actually bite a build-and-publish repo: untrusted input flowing into
+# `run:` blocks, unpinned or overly-permissioned actions, and pull_request_target
+# misuse. Container vulnerabilities are covered separately by the Trivy scans
+# in ci.yml and image-scan.yml, which report into the same Security tab.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays at 0000 — same slot as the scheduled image scan.
+    - cron: "0 0 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze Actions workflows
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: actions
+          build-mode: none
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:actions
