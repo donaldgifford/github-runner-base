@@ -65,8 +65,12 @@ All of it at once:
 
 ```bash
 just verify              # defaults to :latest
-just verify v1.2.3
+just verify v1.2.3       # git tag or image tag — both work
 ```
+
+Note that the git tag and the image tag differ by the leading `v`:
+`docker/metadata-action`'s `{{version}}` pattern strips it, so git `v1.2.3`
+publishes as image `1.2.3`. `just verify` normalises either form.
 
 Or by hand:
 

@@ -21,12 +21,9 @@ vulnerabilities:
       - home/runner/externals/node20/lib/node_modules/npm/node_modules/tar/package.json
       - home/runner/externals/node24/lib/node_modules/npm/node_modules/tar/package.json
     statement: >-
-      node-tar DoS via a crafted gzip bomb, in the npm bundled inside the
-      Node runtimes that ghcr.io/actions/actions-runner ships under
-      /home/runner/externals/. Nothing in our Dockerfile installs or uses it,
-      and we cannot patch it without forking the base image — the fix is an
-      upstream runner release bundling npm with node-tar >= 7.5.19, which
-      Renovate will pick up as a base-image digest bump.
-      Re-check on expiry: if the current base image still carries it, extend
-      with a fresh date and a note on why; if not, delete this entry.
+      node-tar DoS via a crafted gzip bomb, in the npm bundled inside the Node runtimes that ghcr.io/actions/actions-runner
+      ships under /home/runner/externals/. Nothing in our Dockerfile installs or uses it, and we cannot patch it without forking
+      the base image — the fix is an upstream runner release bundling npm with node-tar >= 7.5.19, which Renovate will pick
+      up as a base-image digest bump. Re-check on expiry: if the current base image still carries it, extend with a fresh
+      date and a note on why; if not, delete this entry.
     expired_at: 2026-12-20

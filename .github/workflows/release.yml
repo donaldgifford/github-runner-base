@@ -235,7 +235,10 @@ jobs:
             echo "| Field | Value |"
             echo "|-------|-------|"
             echo "| Image | \`${REGISTRY}/${IMAGE_REPO}\` |"
-            echo "| Tag | \`${TAG}\` |"
+            echo "| Git tag | \`${TAG}\` |"
+            # metadata-action's {{version}} pattern strips the leading v, so
+            # the image tag is never the same string as the git tag.
+            echo "| Image tag | \`${TAG#v}\` |"
             echo "| Pushed | \`${PUBLISHED}\` |"
             if [ -n "${DIGEST}" ]; then
               echo "| Digest | \`${DIGEST}\` |"

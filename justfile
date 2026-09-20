@@ -98,18 +98,35 @@ scan tag="dev": (_ensure tag)
 scan-report tag="dev": (_ensure tag)
     @trivy image --severity CRITICAL,HIGH,MEDIUM {{ image }}:{{ tag }}
 
-# Verify the signature, attestations, and SBOM on a published tag
+# Verify the signature, attestations, and SBOM on a published tag.
+# Takes either form: `just verify v0.1.0` or `just verify 0.1.0`. Image tags
+# drop the leading v because docker/metadata-action's {{{{version}} pattern
+# strips it, so the git tag and the image tag differ by exactly that.
 [group('security')]
 verify tag="latest":
-    @echo "→ cosign signature"
-    @cosign verify {{ image }}:{{ tag }} \
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ref="{{ image }}:{{ trim_start_match(tag, 'v') }}"
+
+    echo "→ cosign signature — ${ref}"
+    # -o text writes the human-readable report to stderr and the signature
+    # payloads to stdout; only the former is worth reading here.
+    cosign verify "${ref}" \
         --certificate-identity-regexp '^https://github\.com/{{ image_name }}/' \
         --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-        -o text
-    @echo "→ SLSA provenance attestation"
-    @gh attestation verify "oci://{{ image }}:{{ tag }}" --repo {{ image_name }}
-    @echo "→ in-registry attestation manifests (SBOM + provenance)"
-    @docker buildx imagetools inspect {{ image }}:{{ tag }} --raw \
+        -o text > /dev/null
+
+    # gh attestation verify filters to SLSA provenance unless told otherwise,
+    # so the SBOM attestation needs its own pass or it silently goes unchecked.
+    echo "→ signed GitHub attestations"
+    for pt in https://slsa.dev/provenance/v1 https://spdx.dev/Document/v2.3; do
+        gh attestation verify "oci://${ref}" --repo {{ image_name }} \
+            --predicate-type "${pt}" --format json \
+            | jq -r '.[] | "  ok  " + .verificationResult.statement.predicateType'
+    done
+
+    echo "→ in-registry attestation manifests (one per platform)"
+    docker buildx imagetools inspect "${ref}" --raw \
         | jq -r '.manifests[] | select(.annotations["vnd.docker.reference.type"] == "attestation-manifest") | "  attests " + .annotations["vnd.docker.reference.digest"]'
 
 # ─── Lint & format ──────────────────────────────────────────────────
@@ -134,10 +151,14 @@ lint-actions:
 lint-yaml:
     @yamllint .
 
-# Lint Markdown
+# Lint Markdown.
+# CHANGELOG.md is excluded with a negation glob, not an ignore file:
+# markdownlint-cli2 does not read .markdownlintignore (that is cli v1), so an
+# ignore file silently does nothing. git-cliff repeats "### Features" once per
+# release, which trips MD024.
 [group('lint')]
 lint-markdown:
-    @markdownlint-cli2 "**/*.md"
+    @markdownlint-cli2 "**/*.md" "!CHANGELOG.md"
 
 # Check formatting without writing changes
 [group('lint')]
@@ -149,7 +170,7 @@ lint-format:
 fmt:
     @yamlfmt
     @prettier --write .
-    @markdownlint-cli2 --fix "**/*.md"
+    @markdownlint-cli2 --fix "**/*.md" "!CHANGELOG.md"
     @echo "✓ Formatted"
 
 # ─── Changelog ──────────────────────────────────────────────────────
