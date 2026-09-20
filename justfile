@@ -151,10 +151,14 @@ lint-actions:
 lint-yaml:
     @yamllint .
 
-# Lint Markdown
+# Lint Markdown.
+# CHANGELOG.md is excluded with a negation glob, not an ignore file:
+# markdownlint-cli2 does not read .markdownlintignore (that is cli v1), so an
+# ignore file silently does nothing. git-cliff repeats "### Features" once per
+# release, which trips MD024.
 [group('lint')]
 lint-markdown:
-    @markdownlint-cli2 "**/*.md"
+    @markdownlint-cli2 "**/*.md" "!CHANGELOG.md"
 
 # Check formatting without writing changes
 [group('lint')]
@@ -166,7 +170,7 @@ lint-format:
 fmt:
     @yamlfmt
     @prettier --write .
-    @markdownlint-cli2 --fix "**/*.md"
+    @markdownlint-cli2 --fix "**/*.md" "!CHANGELOG.md"
     @echo "✓ Formatted"
 
 # ─── Changelog ──────────────────────────────────────────────────────
