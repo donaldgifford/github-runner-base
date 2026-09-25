@@ -30,6 +30,10 @@ This image adds the following tools on top of the official runner:
 - **Python**: `python3`, plus [`uv`](https://docs.astral.sh/uv/) and `uvx` to
   manage interpreters and Python CLI tools. mise's `pipx:` backend uses `uvx`
   automatically, so no `pipx` is needed.
+- **Node.js**: the Active LTS `node`, `npm`, `npx` and `corepack`, so npm-based
+  tools installed by mise (markdownlint-cli2, prettier) have a runtime. A repo
+  that pins `node` in `mise.toml` still gets its own version.
+- **GitHub CLI**: `gh`, checksum-verified from the release tarball.
 - **Utilities**: `jq`, `git`, `ca-certificates`, `gnupg`
 
 ## Building the Image
