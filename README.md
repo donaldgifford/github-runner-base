@@ -27,6 +27,9 @@ This image adds the following tools on top of the official runner:
 - **Download utilities**: `curl`, `wget`
 - **Archive tools**: `tar`, `gzip`, `bzip2`, `xz-utils`, `unzip`, `zip`
 - **Build tools**: `build-essential` (gcc, g++, make)
+- **Python**: `python3`, plus [`uv`](https://docs.astral.sh/uv/) and `uvx` to
+  manage interpreters and Python CLI tools. mise's `pipx:` backend uses `uvx`
+  automatically, so no `pipx` is needed.
 - **Utilities**: `jq`, `git`, `ca-certificates`, `gnupg`
 
 ## Building the Image

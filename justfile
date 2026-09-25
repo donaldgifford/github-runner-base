@@ -62,6 +62,8 @@ test tag="dev": (_ensure tag)
         git --version; \
         jq --version; \
         python3 --version; \
+        uv --version; \
+        uvx --version; \
         gcc --version; \
     ' > /dev/null
     @echo "✓ All expected tools present in {{ image }}:{{ tag }}"
