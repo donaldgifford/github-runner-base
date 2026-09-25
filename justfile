@@ -64,6 +64,10 @@ test tag="dev": (_ensure tag)
         python3 --version; \
         uv --version; \
         uvx --version; \
+        node --version; \
+        npm --version; \
+        npx --version; \
+        gh --version; \
         gcc --version; \
     ' > /dev/null
     @echo "✓ All expected tools present in {{ image }}:{{ tag }}"

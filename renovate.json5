@@ -6,4 +6,15 @@
     "github>donaldgifford/renovate-config:mise",
     "github>donaldgifford/renovate-config:ci",
   ],
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Dockerfile ARG versions annotated with `# renovate: datasource=<ds> depName=<dep>` on the line above (e.g. GH_VERSION for the GitHub CLI).",
+      managerFilePatterns: ["/(^|/)Dockerfile$/"],
+      matchStrings: [
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s*\\nARG\\s+[A-Z0-9_]+=(?<currentValue>\\S+)",
+      ],
+      extractVersionTemplate: "^v?(?<version>.*)$",
+    },
+  ],
 }
