@@ -40,5 +40,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
+# uv manages Python on the runner: interpreters (`uv python install`) and
+# Python CLI tools. mise's pypi/pipx backend switches to `uvx` when uv is on
+# PATH, so `pipx:` tools in a repo's mise.toml install without pipx. uv's
+# default python-preference (`managed`) still uses the system python3 when it
+# satisfies a request, so a job downloads an interpreter only when it pins a
+# different version. Copied from Astral's image (their documented install
+# path) and pinned by digest; Renovate bumps tag and digest together.
+COPY --from=ghcr.io/astral-sh/uv:0.12.19@sha256:04d046b13e60d6bcec73cbc5e1cad25d680dea90c8573340950a0ac2d1aef424 /uv /uvx /usr/local/bin/
+
 # Switch back to the runner user (important for ARC compatibility)
 USER runner
