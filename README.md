@@ -24,14 +24,33 @@ GitHub's Actions Runner Controller (ARC) for Kubernetes.
 
 This image adds the following tools on top of the official runner:
 
-- **Download utilities**: `curl`, `wget`
-- **Archive tools**: `tar`, `gzip`, `bzip2`, `xz-utils`, `unzip`, `zip`
-- **Build tools**: `build-essential` (gcc, g++, make)
-- **Python**: `python3`, plus [`uv`](https://docs.astral.sh/uv/) and `uvx` to
-  manage interpreters and Python CLI tools. mise's `pipx:` backend uses `uvx`
-  automatically, so no `pipx` is needed.
-- **Utilities**: `jq`, `git`, `ca-certificates`, `gnupg`, and `envsubst` (from
-  `gettext-base`) for templating manifests and config from the job environment
+- **Transfer**: `curl`, `wget`, `rsync`
+- **Archive and compression**: `tar`, `gzip`, `bzip2`, `xz-utils`, `unzip`,
+  `zip`, `zstd`, `lz4`, `pigz`
+- **Build tools**: `build-essential` (gcc, g++, make), the autotools chain
+  (`autoconf`, `automake`, `libtool`, `m4`, `pkg-config`), and headers native
+  gem/wheel builds expect (`libssl-dev`, `libyaml-dev`, `libsqlite3-dev`)
+- **Python**: `python3` and `python-is-python3` so a bare `python` resolves,
+  plus [`uv`](https://docs.astral.sh/uv/) and `uvx` to manage interpreters and
+  Python CLI tools. mise's `pipx:` backend uses `uvx` automatically, so no
+  `pipx` is needed.
+- **Utilities**: `jq`, `git`, `file`, `sqlite3`, `locales`, `ca-certificates`,
+  `gnupg`, and `envsubst` (from `gettext-base`) for templating manifests and
+  config from the job environment
+- **Network inspection**: `iproute2`, `iputils-ping`, for debugging connectivity
+  from inside a runner pod
+
+The package set is chosen against the
+[GitHub-hosted runner manifest](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2604-Readme.md)
+so workflows written for `ubuntu-latest` mostly work here unchanged. It is
+deliberately not the whole manifest — matching hosted wholesale pushes an image
+past 18GB, and anything version-sensitive (`kubectl`, `helm`, `yq`, `kustomize`)
+belongs in a repo's own `mise.toml` rather than frozen into this base.
+
+Note that this image tracks Ubuntu 24.04, because the upstream runner image
+builds on `mcr.microsoft.com/dotnet/runtime-deps:8.0-noble`. Hosted
+`ubuntu-latest` moves to Ubuntu 26.04 between October 19 and November 19, 2026;
+this image follows whenever upstream rebases.
 
 ## Building the Image
 
