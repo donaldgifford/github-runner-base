@@ -60,11 +60,19 @@ test tag="dev": (_ensure tag)
         gzip --version; \
         unzip -v; \
         git --version; \
+        rsync --version; \
+        zstd --version; \
         jq --version; \
+        file --version; \
+        envsubst --version; \
+        sqlite3 --version; \
+        pkg-config --version; \
         python3 --version; \
+        python --version; \
         uv --version; \
         uvx --version; \
         gcc --version; \
+        autoconf --version; \
     ' > /dev/null
     @echo "✓ All expected tools present in {{ image }}:{{ tag }}"
 
