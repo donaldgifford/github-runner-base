@@ -30,7 +30,8 @@ This image adds the following tools on top of the official runner:
 - **Python**: `python3`, plus [`uv`](https://docs.astral.sh/uv/) and `uvx` to
   manage interpreters and Python CLI tools. mise's `pipx:` backend uses `uvx`
   automatically, so no `pipx` is needed.
-- **Utilities**: `jq`, `git`, `ca-certificates`, `gnupg`
+- **Utilities**: `jq`, `git`, `ca-certificates`, `gnupg`, and `envsubst` (from
+  `gettext-base`) for templating manifests and config from the job environment
 
 ## Building the Image
 

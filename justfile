@@ -61,6 +61,7 @@ test tag="dev": (_ensure tag)
         unzip -v; \
         git --version; \
         jq --version; \
+        envsubst --version; \
         python3 --version; \
         uv --version; \
         uvx --version; \

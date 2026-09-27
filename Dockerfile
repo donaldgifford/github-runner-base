@@ -36,6 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   gnupg \
   lsb-release \
   software-properties-common \
+  # envsubst, for templating manifests and config from the job environment
+  gettext-base \
   # Cleanup
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
